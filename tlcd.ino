@@ -19,7 +19,7 @@ void setup ()
 	lcd_on();
 	lcd_clear();
 
-	lcd_goto(3,0);
+	lcd_goto(4,0);
 
 	lcd_string("Time:");
 //{ 0x7E, 0x11, 0x11, 0x11, 0x7E }, // A
