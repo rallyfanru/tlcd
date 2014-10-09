@@ -242,7 +242,7 @@ void lcd_letter (byte c)
   
   for (byte x = 0; x < 5; x++)
     lcd_write (pgm_read_byte (&font [c] [x]));
-  	lcd_write (0);   
+  	lcd_write (0);   //пробел в пиксель между символами
 } 
 
 
