@@ -9,26 +9,26 @@
 //MCP mcpchip(0); 
 
 int x=0,y=0;
+int i=90;
+char myString[] = "ABCАБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюя";
+byte b=0;
 
 void setup ()
 {
 
 	Serial.begin(115200);
 	mcpchip.pinMode(0);
-
 	lcd_on();
 	lcd_clear();
-
-	lcd_goto(4,0);
-
-	lcd_string("Time:");
-//{ 0x7E, 0x11, 0x11, 0x11, 0x7E }, // A
 }
 
 void loop()
 {
 	char time[5];
-	sprintf(time,"%d",millis()/100);
-	lcd_goto(3,64);
+	sprintf(time,"%d",i);
+	lcd_goto(3,74);
 	lcd_string(time);
+	
+	lcd_goto(3,5);
+	lcd_string("Время time идет вперед!:");
 }
