@@ -191,9 +191,16 @@ void lcd_on(byte chip);
 void lcd_goto(byte x, byte y);
 void lcd_write(byte data);
 
+
 MCP mcpchip(0); 
 
 uint16_t chipselect=0;
+uint8_t lcd_x=0;
+uint8_t lcd_y=0;
+uint8_t lcd_chip=1;
+
+const uint8_t newline=0;  //перенос текста на новую строку
+
 
 uint16_t set_data_bits(byte data){
 	
@@ -247,28 +254,35 @@ void lcd_clear(byte fill=0){
 	
 		for(byte x=0; x<8; x++){
 			lcd_goto(x,0);
-			for(byte y=0; y<64; y++) lcd_write(fill);
-		}
-	
+            for(byte y=0; y<64; y++) lcd_write(fill);
 
-	
-		for(byte x=0; x<8; x++){
-			lcd_goto(x,64);	
-			for(byte y=0; y<64; y++) lcd_write(fill);
+            lcd_goto(x,64); 
+            for(byte y=0; y<64; y++) lcd_write(fill);
 		}
-	
 
+		// for(byte x=0; x<8; x++){
+		// 	lcd_goto(x,64);	
+		// 	for(byte y=0; y<64; y++) lcd_write(fill);
+		// }
+	
 
 }
 
 
 void lcd_goto(byte x, byte y){
 
+
+    lcd_x = x;
+    lcd_y = y;
+
+    
 	if(y > 63){
 		chipselect = 1 << (CS2 - 1);
 		y-=64;
+        lcd_chip = 2;
 	}else{
 		chipselect = 1 << (CS1 - 1);
+        lcd_chip = 1;
 	}
 
 	mcpchip.digitalWrite(LCD_CMD_SETY | set_data_bits(y) | chipselect); 
@@ -279,17 +293,35 @@ void lcd_goto(byte x, byte y){
 	mcpchip.digitalWrite(LCD_CMD_SETX | set_data_bits(x) | (1 << (E-1)));
 	mcpchip.digitalWrite(LCD_CMD_SETX | set_data_bits(x) | chipselect );
 
-
 }
 
 void lcd_write(byte data){
 
 	if(!chipselect) lcd_goto(0,0);
 
-	mcpchip.digitalWrite(LCD_CMD_WRITE | set_data_bits(data) | chipselect);
-	mcpchip.digitalWrite(LCD_CMD_WRITE | set_data_bits(data) | chipselect | (1 << (E-1)));
-	mcpchip.digitalWrite(LCD_CMD_WRITE | set_data_bits(data) | chipselect);
+    // Serial.print("X: ");
+    // Serial.print(lcd_x);
+    // Serial.print(" Y: ");
+    // Serial.print(lcd_y);
+    // Serial.print(" chip: ");
+    // Serial.println(lcd_chip);
 
+
+    if(lcd_y > 127 && lcd_chip == 2 && newline == 0) {
+        return;
+    }else{
+    	mcpchip.digitalWrite(LCD_CMD_WRITE | set_data_bits(data) | chipselect);
+    	mcpchip.digitalWrite(LCD_CMD_WRITE | set_data_bits(data) | chipselect | (1 << (E-1)));
+    	mcpchip.digitalWrite(LCD_CMD_WRITE | set_data_bits(data) | chipselect);
+    };
+
+    lcd_y++;
+    if(lcd_y > 63 && lcd_chip == 1) lcd_goto(lcd_x,lcd_y);
+
+    if(lcd_y > 127 && lcd_chip == 2 && newline == 1) {
+        lcd_x++;
+        lcd_goto(lcd_x,0);
+    };
 
 }
 

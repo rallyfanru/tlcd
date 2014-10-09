@@ -20,15 +20,15 @@ void setup ()
 	mcpchip.pinMode(0);
 	lcd_on();
 	lcd_clear();
+
+	lcd_goto(3,0);
+	lcd_string(myString);
+
 }
 
 void loop()
 {
-	char time[5];
-	sprintf(time,"%d",i);
-	lcd_goto(3,74);
-	lcd_string(time);
 	
-	lcd_goto(3,5);
-	lcd_string("Время time идет вперед!:");
+
 }
+
