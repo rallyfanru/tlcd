@@ -1,13 +1,41 @@
-#define LCD_CMD_ONOFF 0B0011111100000000
-#define LCD_CMD_SETY 0B0100000000000000
-#define LCD_CMD_SETX 0B1011100000000000
-#define LCD_CMD_WRITE 0B0000000000100000
+/*
+Подключение экрана:
+ 
+1   +5                                      
+2   GND
+3   На среднюю ногу потенциометра
+4   DB0                                 GPB0
 
+11  DB7                                 GPB7
+12  CS1                                 GPA3
+13  CS2                                 GPA2
+14  RST через резистор на +5
+15  R/W                                 GPA6
+16  D/i                                 GPA5
+17  E                                   GPA7
+18  На правую ногу потенциометра
+19  +5
+20  подсветка, через резистор на GND  
+21  --
+22  --
+
+*/
+
+/*
+#define LCD_CMD_ONOFF 0B0011111100000000
+#define LCD_CMD_SETY  0B0100000000000000
+#define LCD_CMD_SETX  0B1011100000000000
+#define LCD_CMD_WRITE 0B0000000000100000
+#define LCD_CMD_READ  0B0000000001100000
+*/
+
+//Номера ног на mcp23S17
+//обозначение не как в datasheet, а с GPA0(21 нога по datasheet) - 1, GPA1 - 2. Т.е. GPB0 - 9 нога.
 #define CS1 3
 #define CS2 4
-#define DI 6
-#define RW 7
-#define E 8 
+#define DI  6
+#define RW  7
+#define E   8 
 #define DB0 9 
 #define DB1 10 
 #define DB2 11 
@@ -16,6 +44,14 @@
 #define DB5 14 
 #define DB6 15 
 #define DB7 16 
+
+
+#define cmd_on    (1 << (DB0-1)) | (1 << (DB1-1)) | (1 << (DB2-1)) | (1 << (DB3-1)) | (1 << (DB4-1)) | (1 << (DB5-1))
+#define cmd_setx  (1 << (DB7-1)) | (1 << (DB3-1)) | (1 << (DB4-1)) | (1 << (DB5-1))
+#define cmd_sety  (1 << (DB6-1))
+#define cmd_write (1 << (DI-1))
+#define cmd_read  (1 << (DI-1)) | (1 << (RW-1))
+
 
 byte font [160] [5] PROGMEM = {
   // font data
@@ -185,11 +221,36 @@ byte font [160] [5] PROGMEM = {
 };
 
 
+byte tf [16] [16] PROGMEM = {
+    0x80, 0x80, 0x80, 0xe0, 0xe0, 0x80, 0x80, 0x80, 0x00, 0x00, 0x00, 0x03, 0x03, 0x00, 0x00, 0x00, // char '+'
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xb0, 0x70, 0x00, 0x00, 0x00, // char ','
+    0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // char '-'
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x30, 0x30, 0x00, 0x00, 0x00, // char '.'
+    0x00, 0x00, 0x00, 0xc0, 0xf0, 0x3c, 0x0f, 0x03, 0x30, 0x3c, 0x0f, 0x03, 0x00, 0x00, 0x00, 0x00, // char '/'
+    0xfc, 0xfe, 0x03, 0x81, 0x61, 0x1b, 0xfe, 0xfc, 0x0f, 0x1f, 0x36, 0x21, 0x20, 0x30, 0x1f, 0x0f, // char '0'
+    0x04, 0x04, 0x06, 0xff, 0xff, 0x00, 0x00, 0x00, 0x20, 0x20, 0x20, 0x3f, 0x3f, 0x20, 0x20, 0x20, // char '1'
+    0x0c, 0x0e, 0x03, 0x01, 0x81, 0xc3, 0x7e, 0x3c, 0x38, 0x3c, 0x26, 0x23, 0x21, 0x20, 0x20, 0x20, // char '2'
+    0x0c, 0x0e, 0x43, 0x41, 0x41, 0x43, 0xfe, 0xbc, 0x0c, 0x1c, 0x30, 0x20, 0x20, 0x30, 0x1f, 0x0f, // char '3'
+    0x00, 0xe0, 0xfc, 0x1f, 0x83, 0x80, 0x00, 0x00, 0x0f, 0x0f, 0x08, 0x08, 0x3f, 0x3f, 0x08, 0x08, // char '4'
+    0x3f, 0x3f, 0x21, 0x21, 0x21, 0x61, 0xc1, 0x81, 0x0c, 0x1c, 0x30, 0x20, 0x20, 0x30, 0x1f, 0x0f, // char '5'
+    0xe0, 0xf8, 0x5c, 0x46, 0x43, 0xc1, 0x81, 0x01, 0x0f, 0x1f, 0x30, 0x20, 0x20, 0x30, 0x1f, 0x0f, // char '6'
+    0x01, 0x01, 0x01, 0x01, 0x81, 0xf1, 0x7f, 0x0f, 0x00, 0x00, 0x00, 0x3c, 0x3f, 0x03, 0x00, 0x00, // char '7'
+    0x1c, 0xbe, 0xe3, 0x41, 0x41, 0xe3, 0xbe, 0x1c, 0x0f, 0x1f, 0x30, 0x20, 0x20, 0x30, 0x1f, 0x0f, // char '8'
+    0x3c, 0x7e, 0xc3, 0x81, 0x81, 0x83, 0xfe, 0xfc, 0x20, 0x20, 0x20, 0x30, 0x18, 0x0e, 0x07, 0x01, // char '9'
+    0x00, 0x00, 0x00, 0x60, 0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x30, 0x30, 0x00, 0x00, 0x00  // char ':
+};
+
 void lcd_clear(byte fill);
 uint16_t set_data_bits(byte data);
 void lcd_on(byte chip);
 void lcd_goto(byte x, byte y);
 void lcd_write(byte data);
+void lcd_bigfont_string (const char *s);
+void lcd_bigfont_letter (byte c);
+void lcd_vline(byte from_x, byte to_x);
+void lcd_hline(byte from_y, byte to_y);
+void lcd_set_dot(byte x, byte y);
+void lcd_cmd(uint16_t cmd);
 
 
 MCP mcpchip(0); 
@@ -199,13 +260,10 @@ uint8_t lcd_x=0;
 uint8_t lcd_y=0;
 uint8_t lcd_chip=1;
 
-const uint8_t newline=0;  //перенос текста на новую строку
+const uint8_t newline=1;  //перенос текста на новую строку
 
 
 uint16_t set_data_bits(byte data){
-	
-	// Serial.println(data,BIN);
-	// Serial.println("5432109876543210");
 	
 	uint16_t result=0;
 
@@ -218,9 +276,14 @@ uint16_t set_data_bits(byte data){
 	result |= ( (uint16_t)((data >> 6) & 1) << (DB6 - 1) );
 	result |= ( (uint16_t)((data >> 7) & 1) << (DB7 - 1) );
 
-	// Serial.println(result,BIN);
-	// Serial.println();
 	return result;
+}
+
+void lcd_cmd(uint16_t cmd){
+
+    mcpchip.digitalWrite(cmd);   //Команда на включение
+    mcpchip.digitalWrite(cmd | (1 << (E-1))); //Дрыг линией Е
+    mcpchip.digitalWrite(cmd);   //Линию Е обратно в 0
 }
 
 void lcd_on(byte chip=0) {
@@ -242,32 +305,48 @@ void lcd_on(byte chip=0) {
 			;
 	}
 
-	//Включение
-	mcpchip.digitalWrite(LCD_CMD_ONOFF | cspin);	//Команда на включение
-	mcpchip.digitalWrite(LCD_CMD_ONOFF | cspin | (1 << (E-1))); //Дрыг линией Е
-	mcpchip.digitalWrite(LCD_CMD_ONOFF | cspin); 	//Линию Е обратно в 0
-
+	lcd_cmd(cmd_on | cspin);
 }
 
 void lcd_clear(byte fill=0){
-
-	
 		for(byte x=0; x<8; x++){
 			lcd_goto(x,0);
             for(byte y=0; y<64; y++) lcd_write(fill);
-
             lcd_goto(x,64); 
             for(byte y=0; y<64; y++) lcd_write(fill);
 		}
-
-		// for(byte x=0; x<8; x++){
-		// 	lcd_goto(x,64);	
-		// 	for(byte y=0; y<64; y++) lcd_write(fill);
-		// }
-	
-
 }
 
+void lcd_get_bites(uint16_t cmd){
+
+    Serial.println("0 1 2 3 4 5 6 7 I W E 1 2");
+    Serial.print(((cmd >> DB0-1) & 1));
+    Serial.print(" ");
+    Serial.print(((cmd >> DB1-1) & 1));
+    Serial.print(" ");
+    Serial.print(((cmd >> DB2-1) & 1));
+    Serial.print(" ");
+    Serial.print(((cmd >> DB3-1) & 1));
+    Serial.print(" ");
+    Serial.print(((cmd >> DB4-1) & 1));
+    Serial.print(" ");
+    Serial.print(((cmd >> DB5-1) & 1));
+    Serial.print(" ");
+    Serial.print(((cmd >> DB6-1) & 1));
+    Serial.print(" ");
+    Serial.print(((cmd >> DB7-1) & 1));
+    Serial.print(" ");
+    Serial.print(((cmd >> DI-1) & 1));
+    Serial.print(" ");
+    Serial.print(((cmd >> RW-1) & 1));
+    Serial.print(" ");
+    Serial.print(((cmd >> E-1) & 1));
+    Serial.print(" ");
+    Serial.print(((cmd >> CS1-1) & 1));
+    Serial.print(" ");
+    Serial.println(((cmd >> CS2-1) & 1));
+    Serial.println("");
+}
 
 void lcd_goto(byte x, byte y){
 
@@ -284,35 +363,20 @@ void lcd_goto(byte x, byte y){
 		chipselect = 1 << (CS1 - 1);
         lcd_chip = 1;
 	}
+    
 
-	mcpchip.digitalWrite(LCD_CMD_SETY | set_data_bits(y) | chipselect); 
-	mcpchip.digitalWrite(LCD_CMD_SETY | set_data_bits(y) | chipselect | (1 << (E-1)));
-	mcpchip.digitalWrite(LCD_CMD_SETY | set_data_bits(y) | chipselect );
-
-	mcpchip.digitalWrite(LCD_CMD_SETX | set_data_bits(x) | chipselect);  
-	mcpchip.digitalWrite(LCD_CMD_SETX | set_data_bits(x) | (1 << (E-1)));
-	mcpchip.digitalWrite(LCD_CMD_SETX | set_data_bits(x) | chipselect );
-
+    lcd_cmd(cmd_sety | set_data_bits(y) | chipselect);
+    lcd_cmd(cmd_setx | set_data_bits(x) | chipselect);
 }
 
 void lcd_write(byte data){
 
-	if(!chipselect) lcd_goto(0,0);
-
-    // Serial.print("X: ");
-    // Serial.print(lcd_x);
-    // Serial.print(" Y: ");
-    // Serial.print(lcd_y);
-    // Serial.print(" chip: ");
-    // Serial.println(lcd_chip);
-
+    if(!chipselect) lcd_goto(0,0);
 
     if(lcd_y > 127 && lcd_chip == 2 && newline == 0) {
         return;
     }else{
-    	mcpchip.digitalWrite(LCD_CMD_WRITE | set_data_bits(data) | chipselect);
-    	mcpchip.digitalWrite(LCD_CMD_WRITE | set_data_bits(data) | chipselect | (1 << (E-1)));
-    	mcpchip.digitalWrite(LCD_CMD_WRITE | set_data_bits(data) | chipselect);
+        lcd_cmd(cmd_write | set_data_bits(data) | chipselect);
     };
 
     lcd_y++;
@@ -322,27 +386,35 @@ void lcd_write(byte data){
         lcd_x++;
         lcd_goto(lcd_x,0);
     };
-
 }
 
-void lcd_letter (byte c)
-{
+void lcd_letter (byte c){
   if (c < 0x20 || c > 0xBF) return;  
-  
   c -= 0x20; 
-  
-  //if (_lcdx >= 60 && _chipSelect == LCD_CS2) gotoxy (0, _lcdy + 8);
-  
-  for (byte x = 0; x < 5; x++)
-    lcd_write (pgm_read_byte (&font [c] [x]));
+  for (byte x = 0; x < 5; x++) lcd_write (pgm_read_byte (&font [c] [x]));
   	lcd_write (0);   //пробел в пиксель между символами
 } 
 
-
-void lcd_string (const char * s)
-{
+void lcd_string (const char * s){
   char c;
-  while (c = *s++)
-     lcd_letter(c); 
+  while (c = *s++) lcd_letter(c); 
 } 
+
+void lcd_bigfont_string (const char *s){
+  char c;
+  while (c = *s++){ 
+     lcd_bigfont_letter(c); 
+     lcd_goto(lcd_x-1,lcd_y+2);
+ };
+}
+
+void lcd_bigfont_letter (byte c){
+  if (c < 0x2B || c > 0x3A) return;  
+  c -= 0x2B; 
+  for (byte x = 0; x < 16; x++){
+        if(x == 8)lcd_goto(lcd_x+1,lcd_y-8);
+        lcd_write (pgm_read_byte (&tf [c] [x]));
+    };
+} 
+
 
