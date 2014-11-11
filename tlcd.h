@@ -50,7 +50,7 @@
 #define cmd_setx  (1 << (DB7-1)) | (1 << (DB3-1)) | (1 << (DB4-1)) | (1 << (DB5-1))
 #define cmd_sety  (1 << (DB6-1))
 #define cmd_write (1 << (DI-1))
-#define cmd_read  (1 << (DI-1)) | (1 << (RW-1))
+#define cmd_read  (1 << (DI-1)) | (1 << (RW-1)) //Чтение жестко завязано на конфигурацию ног!
 
 
 byte font [160] [5] PROGMEM = {
@@ -247,11 +247,12 @@ void lcd_goto(byte x, byte y);
 void lcd_write(byte data);
 void lcd_bigfont_string (const char *s);
 void lcd_bigfont_letter (byte c);
-void lcd_vline(byte from_x, byte to_x);
-void lcd_hline(byte from_y, byte to_y);
+void lcd_vline(byte from_x, byte to_x, byte y);
+void lcd_hline(byte from_y, byte to_y, byte x);
 void lcd_set_dot(byte x, byte y);
 void lcd_cmd(uint16_t cmd);
-
+void set_data_pinmode(uint8_t mode);
+uint8_t lcd_read();
 
 MCP mcpchip(0); 
 
@@ -417,4 +418,97 @@ void lcd_bigfont_letter (byte c){
     };
 } 
 
+uint8_t lcd_read(){
+    uint8_t read_data = 0;
+    set_data_pinmode(1); //переключение пинов mcp на чтение (input)
+    mcpchip.digitalWrite(cmd_read | chipselect);   //Команда на чтение
+    mcpchip.digitalWrite(cmd_read | chipselect | (1 << (E-1))); //Дрыг линией Е
+    mcpchip.digitalWrite(cmd_read | chipselect);   //Линию Е обратно в 0, данные в защелку
+    mcpchip.digitalWrite(cmd_read | chipselect | (1 << (E-1))); //Дрыг линией Е
+    read_data=mcpchip.byteRead(GPIOB);  //пока поднято читаем. Все ноги DB на порте GPOIB. Иначе надо переделать.
+    mcpchip.digitalWrite(cmd_read | chipselect);   //Линию Е обратно в 0
+    set_data_pinmode(0);
+    return read_data;
+}
 
+void set_data_pinmode(uint8_t mode){
+        mcpchip.pinMode(DB0,mode);
+        mcpchip.pinMode(DB1,mode);
+        mcpchip.pinMode(DB2,mode);
+        mcpchip.pinMode(DB3,mode);
+        mcpchip.pinMode(DB4,mode);
+        mcpchip.pinMode(DB5,mode);
+        mcpchip.pinMode(DB6,mode);
+        mcpchip.pinMode(DB7,mode);
+}
+
+void lcd_hline(byte from_y, byte to_y, byte x){
+
+    uint8_t page = x / 8;
+    uint8_t bit = x % 8;
+    uint8_t data = 0;
+
+    if(from_y < 0) from_y = 0;
+    if(from_y > 127) from_y = 127;
+    if(to_y > 127) to_y = 127;
+    if(to_y < 0) to_y = 0;
+
+    if(!(to_y > from_y)) to_y=from_y;
+ 
+    for(int i=from_y;i <= to_y; i++){
+            lcd_goto(page,i);
+            data=lcd_read();
+            lcd_goto(page,i);
+            lcd_write(data | (1 << bit));
+        }
+
+
+}
+
+void lcd_vline(byte from_x, byte to_x, byte y){
+
+    uint8_t from_page = from_x / 8;
+    uint8_t from_bit = from_x % 8;
+    uint8_t to_page = to_x / 8;
+    uint8_t to_bit = to_x % 8;
+
+    uint8_t limit = 0;
+
+    uint8_t data = 0;
+
+    if(from_x < 0) from_x = 0;
+    if(from_x > 7) from_x = 7;
+    if(to_x > 7) to_x = 7;
+    if(to_x < 0) to_x = 0;
+
+    if(!(to_x > from_x)) to_x=from_x;
+
+    if((to_page - from_page) == 0 ){   //сколько дорисовывать, доконца страницы или до бита, если нарисовать надо пару точек
+        limit=to_bit - from_bit;
+    }else{
+        limit=7; 
+    }
+
+    //Дорисовали остаток начальной страницы
+    for(int i = from_bit; i <= limit; i++){
+            lcd_goto(from_page,y);
+            data=lcd_read();
+            lcd_goto(from_page,y);
+            lcd_write(data | (1 << i));
+    }
+
+    while(from_page != to_page){
+            from_page++;
+            if(to_page - from_page > 0){
+                lcd_goto(from_page,y);
+                lcd_write(255);
+            }else{
+            for(int i = 0; i <= to_bit; i++){
+                    lcd_goto(from_page,y);
+                    data=lcd_read();
+                    lcd_goto(from_page,y);
+                    lcd_write(data | (1 << i));
+                }
+            }
+    }
+}
